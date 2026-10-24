@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { Logo } from '../components/common/Logo.js';
 import { Button } from '../components/common/Button.js';

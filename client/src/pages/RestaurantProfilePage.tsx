@@ -3,7 +3,6 @@ import { DEMO_RESTAURANT } from '../data/mockData.js';
 import { RestaurantProfile } from '../types/index.js';
 import { ApiService } from '../services/api.js';
 import { Card, CardContent } from '../components/common/Card.js';
-import { Button } from '../components/common/Button.js';
 import { Badge } from '../components/common/Badge.js';
 import {
   ShieldCheck,

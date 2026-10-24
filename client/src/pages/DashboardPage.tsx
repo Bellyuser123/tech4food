@@ -10,7 +10,6 @@ import { MenuItem, StructuredAllergen } from '../types/index.js';
 import { ApiService } from '../services/api.js';
 import {
   Thermometer,
-  CheckCircle,
   UserCheck,
   UtensilsCrossed,
   Plus,
@@ -19,7 +18,6 @@ import {
   ToggleRight,
   Upload,
   AlertTriangle,
-  Building,
   Edit3,
 } from 'lucide-react';
 
@@ -57,10 +55,10 @@ export const DashboardPage: React.FC = () => {
   const [profileDescription, setProfileDescription] = useState<string>(DEMO_RESTAURANT.description);
   const [profileAddress, setProfileAddress] = useState<string>(DEMO_RESTAURANT.address);
   const [profilePhone, setProfilePhone] = useState<string>(DEMO_RESTAURANT.phone);
-  const [profileHours, setProfileHours] = useState<string>(DEMO_RESTAURANT.openingHours);
+  const [profileHours, setProfileHours] = useState<string>(DEMO_RESTAURANT.openingHours || '');
 
   // Demo token for Elena Rossi (Manager)
-  const [managerToken, setManagerToken] = useState<string>('demo-token');
+  const [managerToken] = useState<string>('demo-token');
 
   // Load menu items from API
   const loadMenu = async () => {

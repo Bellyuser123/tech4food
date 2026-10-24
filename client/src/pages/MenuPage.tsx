@@ -16,7 +16,6 @@ import {
   Info,
   AlertTriangle,
   HelpCircle,
-  Sparkles,
 } from 'lucide-react';
 
 export const MenuPage: React.FC = () => {
