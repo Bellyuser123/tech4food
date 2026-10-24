@@ -43,7 +43,7 @@ export const AppContent: React.FC = () => {
             showToast({
               type: 'error',
               title: 'QR Code Resolution',
-              message: err.message || 'Scanned QR token could not be verified.',
+              description: err.message || 'Scanned QR token could not be verified.',
             });
           });
       }
@@ -63,7 +63,7 @@ export const AppContent: React.FC = () => {
       showToast({
         type: 'success',
         title: 'Order Verified',
-        message: `Order #${result.order.orderReference} loaded with verified kitchen temperature logs.`,
+        description: `Order #${result.order.orderReference} loaded with verified kitchen temperature logs.`,
       });
     } else if (result.type === 'table') {
       setActiveTable(result.tableNumber || 'Station Active');
@@ -71,7 +71,7 @@ export const AppContent: React.FC = () => {
       showToast({
         type: 'success',
         title: 'Table Station Connected',
-        message: `${result.tableNumber || 'Table'} verified. Browsing authenticated menu and allergen disclosures.`,
+        description: `${result.tableNumber || 'Table'} verified. Browsing authenticated menu and allergen disclosures.`,
       });
     }
   };

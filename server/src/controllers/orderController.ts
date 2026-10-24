@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { Repository } from '../db/repository.js';
+import { AuthenticatedRequest, UserMembership } from '../types/auth.js';
 
 export class OrderController {
   /**
@@ -80,7 +81,7 @@ export class OrderController {
    * SECURITY: Blocks arbitrary order scraping by requiring staff authentication
    * and verifying that the order belongs to a restaurant the user is permitted to manage.
    */
-  public static async getOrderById(req: Request, res: Response): Promise<void> {
+  public static async getOrderById(req: AuthenticatedRequest, res: Response): Promise<void> {
     const orderId = String(req.params.orderId);
     const order = await Repository.findOrderById(orderId);
 
@@ -104,7 +105,7 @@ export class OrderController {
 
     const hasAccess =
       user.isPlatformAdmin ||
-      user.memberships.some((m) => m.restaurantId === order.restaurant_id);
+      user.memberships.some((m: UserMembership) => m.restaurantId === order.restaurant_id);
 
     if (!hasAccess) {
       res.status(403).json({

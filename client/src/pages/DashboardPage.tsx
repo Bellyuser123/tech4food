@@ -6,7 +6,7 @@ import { Input, Textarea } from '../components/common/Input.js';
 import { Modal } from '../components/common/Modal.js';
 import { useToast } from '../components/common/Toast.js';
 import { DEMO_CCP_LOGS, DEMO_RESTAURANT } from '../data/mockData.js';
-import { MenuItem, StructuredAllergen } from '../types/index.js';
+import { MenuItem, StructuredAllergen, TableQrRecord } from '../types/index.js';
 import { ApiService } from '../services/api.js';
 import {
   Thermometer,
@@ -19,15 +19,26 @@ import {
   Upload,
   AlertTriangle,
   Edit3,
+  QrCode,
+  Printer,
+  RotateCcw,
+  CheckCircle2,
+  FileCheck2,
 } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState<'ccp' | 'menu_manager' | 'incidents' | 'audit'>('menu_manager');
+  const [activeTab, setActiveTab] = useState<'ccp' | 'menu_manager' | 'tables_qr' | 'incidents' | 'audit'>('menu_manager');
 
   // Menu items state
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [isLoadingMenu, setIsLoadingMenu] = useState<boolean>(true);
+
+  // Table QR Stations state
+  const [tableQrs, setTableQrs] = useState<TableQrRecord[]>([]);
+  const [isGenerateQrModalOpen, setIsGenerateQrModalOpen] = useState<boolean>(false);
+  const [newTableNumber, setNewTableNumber] = useState<string>('Table 14 - Terrace');
+  const [tentCardToPrint, setTentCardToPrint] = useState<TableQrRecord | null>(null);
 
   // New Dish Modal state
   const [isAddDishModalOpen, setIsAddDishModalOpen] = useState<boolean>(false);
@@ -90,9 +101,74 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  const loadTableQrs = async () => {
+    try {
+      const qrs = await ApiService.listTableQrCodes(
+        'aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        managerToken
+      );
+      if (qrs && qrs.length > 0) {
+        setTableQrs(qrs);
+      }
+    } catch (err: unknown) {
+      console.warn('Could not load table QR codes:', err);
+    }
+  };
+
   useEffect(() => {
     loadMenu();
+    loadTableQrs();
   }, []);
+
+  const handleGenerateTableQr = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTableNumber.trim()) {
+      showToast({ type: 'error', title: 'Table number required', description: 'Please enter table identifier' });
+      return;
+    }
+
+    try {
+      const newQr = await ApiService.generateTableQrCode(
+        'aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        managerToken,
+        newTableNumber.trim()
+      );
+      setTableQrs((prev) => [newQr, ...prev]);
+      setIsGenerateQrModalOpen(false);
+      setTentCardToPrint(newQr);
+      showToast({
+        type: 'success',
+        title: 'Table QR Station Created',
+        description: `${newTableNumber} QR generated with high-resolution visual assets.`,
+      });
+    } catch (err: unknown) {
+      showToast({
+        type: 'error',
+        title: 'Generation failed',
+        description: err instanceof Error ? err.message : 'Could not generate QR code',
+      });
+    }
+  };
+
+  const handleRevokeTableQr = async (tokenId: string, tableNumber: string) => {
+    try {
+      await ApiService.revokeQrCode('aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa', managerToken, tokenId);
+      setTableQrs((prev) =>
+        prev.map((t) => (t.id === tokenId ? { ...t, isRevoked: true } : t))
+      );
+      showToast({
+        type: 'warning',
+        title: 'Table QR Revoked',
+        description: `${tableNumber} QR code has been marked revoked. Any diner scanning it will be safely blocked.`,
+      });
+    } catch (err: unknown) {
+      showToast({
+        type: 'error',
+        title: 'Revocation failed',
+        description: err instanceof Error ? err.message : 'Could not revoke QR code',
+      });
+    }
+  };
 
   const handleToggleAvailability = async (item: MenuItem) => {
     const newStatus = !item.isAvailable;
@@ -278,6 +354,14 @@ export const DashboardPage: React.FC = () => {
           Menu Management ({menuItems.length})
         </button>
         <button
+          onClick={() => setActiveTab('tables_qr')}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            activeTab === 'tables_qr' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-600'
+          }`}
+        >
+          Tables &amp; QR Codes ({tableQrs.length})
+        </button>
+        <button
           onClick={() => setActiveTab('ccp')}
           className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
             activeTab === 'ccp' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-600'
@@ -404,6 +488,116 @@ export const DashboardPage: React.FC = () => {
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Tab Content: Tables & QR Stations */}
+      {activeTab === 'tables_qr' && (
+        <Card variant="default">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <CardTitle>Table QR Code Stations</CardTitle>
+                <CardDescription>
+                  Generate, print, and revoke table stand QR codes. Diners scanning these codes access the authenticated menu, ingredients, and live CCP logs.
+                </CardDescription>
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsGenerateQrModalOpen(true)}
+              >
+                <Plus className="w-4 h-4 mr-1.5" /> Generate Table QR
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {tableQrs.length === 0 ? (
+              <div className="p-12 text-center space-y-3">
+                <QrCode className="w-12 h-12 text-stone-300 mx-auto" />
+                <p className="text-sm font-semibold text-stone-700">No Table QR Codes Generated Yet</p>
+                <p className="text-xs text-stone-400 max-w-sm mx-auto">
+                  Click 'Generate Table QR' to create printable station QR codes for your dining room.
+                </p>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setIsGenerateQrModalOpen(true)}
+                >
+                  Generate First Table QR
+                </Button>
+              </div>
+            ) : (
+              <div className="divide-y divide-stone-100">
+                {tableQrs.map((qr) => (
+                  <div
+                    key={qr.id}
+                    className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-cream-50/50 transition-colors"
+                  >
+                    <div className="flex items-start gap-4">
+                      {qr.qrDataUrl ? (
+                        <img
+                          src={qr.qrDataUrl}
+                          alt={qr.tableNumber}
+                          className="w-16 h-16 rounded-xl border border-stone-200 bg-white p-1 shrink-0 shadow-sm"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-xl bg-burgundy-50 border border-burgundy-200 flex items-center justify-center shrink-0">
+                          <QrCode className="w-8 h-8 text-burgundy-600" />
+                        </div>
+                      )}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-display font-bold text-base text-stone-900">
+                            {qr.tableNumber}
+                          </h3>
+                          {qr.isRevoked ? (
+                            <Badge variant="danger" size="sm">
+                              Revoked
+                            </Badge>
+                          ) : (
+                            <Badge variant="safety" size="sm">
+                              Active Station
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-stone-500 font-mono">
+                          Token Hash: {qr.tokenHash?.slice(0, 16)}...
+                        </p>
+                        <p className="text-[11px] text-stone-400">
+                          Created: {new Date(qr.createdAt).toLocaleDateString()} &bull; Stable Deep Link
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setTentCardToPrint(qr)}
+                        className="flex items-center gap-1.5"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>Print Tent Card</span>
+                      </Button>
+
+                      {!qr.isRevoked && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRevokeTableQr(qr.id, qr.tableNumber)}
+                          className="flex items-center gap-1.5 text-red-700 border-red-200 hover:bg-red-50"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Revoke QR</span>
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -734,6 +928,108 @@ export const DashboardPage: React.FC = () => {
               </Button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* Generate Table QR Modal */}
+      {isGenerateQrModalOpen && (
+        <Modal
+          isOpen={isGenerateQrModalOpen}
+          onClose={() => setIsGenerateQrModalOpen(false)}
+          title="Generate Table QR Code Station"
+          size="md"
+        >
+          <form onSubmit={handleGenerateTableQr} className="space-y-4">
+            <p className="text-xs text-stone-600 leading-relaxed">
+              Create a cryptographic QR code station for physical table placement. Diners will scan this to open the live menu, ingredient disclosures, and verified HACCP logs.
+            </p>
+            <Input
+              label="Table Number or Station Name"
+              required
+              placeholder="e.g. Table 04, Table 12 - Patio, Booth 3"
+              value={newTableNumber}
+              onChange={(e) => setNewTableNumber(e.target.value)}
+            />
+            <div className="p-3 bg-cream-100 rounded-xl border border-cream-300 text-xs text-stone-600 space-y-1">
+              <p className="font-bold text-stone-800">Tamper &amp; Revocation Protection:</p>
+              <p className="text-[11px] text-stone-500">
+                Each table QR uses an opaque 256-bit hash. If a physical sticker is damaged or altered, you can revoke and replace it instantly from this dashboard without affecting other tables.
+              </p>
+            </div>
+            <div className="pt-2 flex justify-end gap-3">
+              <Button type="button" variant="secondary" onClick={() => setIsGenerateQrModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary">
+                Generate QR Station
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Printable Stand Tent Card Modal */}
+      {tentCardToPrint && (
+        <Modal
+          isOpen={!!tentCardToPrint}
+          onClose={() => setTentCardToPrint(null)}
+          title={`Printable Stand Tent: ${tentCardToPrint.tableNumber}`}
+          size="md"
+        >
+          <div className="space-y-4 text-center">
+            {/* Printable Preview Card matching brand design */}
+            <div
+              id="printable-tent-card"
+              className="p-6 bg-white border-2 border-burgundy-900 rounded-3xl shadow-md max-w-xs mx-auto space-y-3"
+            >
+              <div className="space-y-1">
+                <span className="font-display font-black text-xl text-burgundy-900 tracking-tight block">
+                  PlateProof 360
+                </span>
+                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest block">
+                  Verified Food Safety &amp; Accountability
+                </span>
+              </div>
+
+              {tentCardToPrint.qrDataUrl && (
+                <div className="p-3 bg-cream-50 rounded-2xl border border-stone-200 inline-block shadow-inner">
+                  <img
+                    src={tentCardToPrint.qrDataUrl}
+                    alt={tentCardToPrint.tableNumber}
+                    className="w-48 h-48 mx-auto"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <h3 className="font-display font-extrabold text-2xl text-stone-900">
+                  {tentCardToPrint.tableNumber}
+                </h3>
+                <p className="text-xs text-stone-600 font-medium">
+                  Scan with your phone camera to browse dishes, confirmed allergens &amp; real-time kitchen safety logs.
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-stone-100 flex items-center justify-center gap-1.5 text-[10px] font-mono text-stone-400">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 inline" />
+                <span>Station Hash: {tentCardToPrint.tokenHash?.slice(0, 12)}...</span>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-center gap-3">
+              <Button variant="secondary" onClick={() => setTentCardToPrint(null)}>
+                Close Preview
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => window.print()}
+                className="flex items-center gap-1.5"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print Stand Tent</span>
+              </Button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>

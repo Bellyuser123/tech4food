@@ -6,14 +6,9 @@ import { Badge } from './Badge.js';
 import { ApiService } from '../../services/api.js';
 import { QrResolutionResult } from '../../types/index.js';
 import {
-  QrCode,
-  Scan,
   ShieldCheck,
-  AlertTriangle,
   AlertOctagon,
-  Clock,
   ArrowRight,
-  CheckCircle2,
   Camera,
 } from 'lucide-react';
 
@@ -68,7 +63,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       type: 'order',
       description: 'Order token expired after 24h for customer data protection.',
       badge: 'Expired Test',
-      badgeVariant: 'danger' as const,
+      badgeVariant: 'critical' as const,
     },
     {
       id: 'p5',
@@ -77,7 +72,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       type: 'table',
       description: 'QR code revoked by restaurant manager due to replacement.',
       badge: 'Revoked Test',
-      badgeVariant: 'danger' as const,
+      badgeVariant: 'critical' as const,
     },
   ];
 

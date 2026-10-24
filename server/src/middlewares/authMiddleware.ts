@@ -122,7 +122,8 @@ export function requireTenantScope(
 /**
  * Checks role permissions.
  */
-export function requireRole(allowedRoles: UserRole[]) {
+export function requireRole(roles: UserRole[] | UserRole, ...extraRoles: UserRole[]) {
+  const allowedRoles: UserRole[] = Array.isArray(roles) ? roles : [roles, ...extraRoles];
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({
