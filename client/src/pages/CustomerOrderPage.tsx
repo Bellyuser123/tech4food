@@ -10,15 +10,9 @@ import {
   AlertTriangle,
   Clock,
   MapPin,
-  CheckCircle2,
-  FileText,
   Thermometer,
-  QrCode,
   ArrowRight,
-  Flame,
   AlertOctagon,
-  Phone,
-  RefreshCw,
 } from 'lucide-react';
 
 interface CustomerOrderPageProps {
@@ -82,7 +76,7 @@ export const CustomerOrderPage: React.FC<CustomerOrderPageProps> = ({
   if (error || !order) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-12">
-        <Card variant="danger" className="text-center p-8 space-y-4">
+        <Card variant="bordered" className="border-red-300 bg-red-50/50 text-center p-8 space-y-4">
           <div className="p-4 bg-red-100 text-red-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
             <AlertOctagon className="w-8 h-8" />
           </div>

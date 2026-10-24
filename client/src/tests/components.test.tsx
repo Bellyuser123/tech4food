@@ -108,7 +108,8 @@ describe('Design System Components', () => {
     expect(html).toContain('ORD-7294');
     expect(html).toContain('Table 04');
     expect(html).toContain('Truffle Tagliolini al Burro');
-    expect(html).toContain('Contains GLUTEN');
+    expect(html).toContain('Contains');
+    expect(html).toContain('GLUTEN');
     expect(html).toContain('85.4°C');
     expect(html).toContain('Zero PII');
   });

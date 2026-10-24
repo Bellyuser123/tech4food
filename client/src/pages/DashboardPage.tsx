@@ -22,8 +22,7 @@ import {
   QrCode,
   Printer,
   RotateCcw,
-  CheckCircle2,
-  FileCheck2,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
@@ -558,7 +557,7 @@ export const DashboardPage: React.FC = () => {
                             {qr.tableNumber}
                           </h3>
                           {qr.isRevoked ? (
-                            <Badge variant="danger" size="sm">
+                            <Badge variant="critical" size="sm">
                               Revoked
                             </Badge>
                           ) : (
