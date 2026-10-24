@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { pool, checkDatabaseHealth } from './index.js';
 
 export async function seedDatabase(): Promise<{ success: boolean; message: string }> {
@@ -142,7 +143,79 @@ export async function seedDatabase(): Promise<{ success: boolean; message: strin
       );
     }
 
-    // 7. Seed Sample Audit Event
+    // 7. Seed Sample Orders and Items
+    const order1Id = 'ccccccc1-cccc-cccc-cccc-cccccccccccc';
+    const order2Id = 'ccccccc2-cccc-cccc-cccc-cccccccccccc';
+
+    await client.query(
+      `INSERT INTO orders (id, restaurant_id, branch_id, table_number, order_reference, status, placed_at)
+       VALUES ($1, $2, $3, 'Table 04', 'ORD-7294', 'served', NOW() - INTERVAL '45 minutes')
+       ON CONFLICT (order_reference) DO NOTHING`,
+      [order1Id, r1Id, b1Id]
+    );
+
+    await client.query(
+      `INSERT INTO orders (id, restaurant_id, branch_id, table_number, order_reference, status, placed_at)
+       VALUES ($1, $2, $3, 'Table 07', 'ORD-8812', 'preparing', NOW() - INTERVAL '15 minutes')
+       ON CONFLICT (order_reference) DO NOTHING`,
+      [order2Id, r1Id, b1Id]
+    );
+
+    // 8. Seed QR Tokens
+    const qrTokens = [
+      {
+        id: 'ddddddd1-dddd-dddd-dddd-dddddddddddd',
+        rawToken: 'tbl_osteria_t04',
+        type: 'table',
+        target: 'Table 04',
+        expires: null,
+        revoked: false,
+      },
+      {
+        id: 'ddddddd2-dddd-dddd-dddd-dddddddddddd',
+        rawToken: 'tbl_osteria_t07',
+        type: 'table',
+        target: 'Table 07',
+        expires: null,
+        revoked: false,
+      },
+      {
+        id: 'ddddddd3-dddd-dddd-dddd-dddddddddddd',
+        rawToken: 'ord_token_7294',
+        type: 'order',
+        target: order1Id,
+        expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        revoked: false,
+      },
+      {
+        id: 'ddddddd4-dddd-dddd-dddd-dddddddddddd',
+        rawToken: 'ord_token_expired',
+        type: 'order',
+        target: order2Id,
+        expires: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        revoked: false,
+      },
+      {
+        id: 'ddddddd5-dddd-dddd-dddd-dddddddddddd',
+        rawToken: 'tbl_osteria_revoked',
+        type: 'table',
+        target: 'Table 99',
+        expires: null,
+        revoked: true,
+      },
+    ];
+
+    for (const qt of qrTokens) {
+      const hash = crypto.createHash('sha256').update(qt.rawToken).digest('hex');
+      await client.query(
+        `INSERT INTO qr_tokens (id, restaurant_id, branch_id, token_hash, token_type, target_reference, expires_at, is_revoked)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (token_hash) DO NOTHING`,
+        [qt.id, r1Id, b1Id, hash, qt.type, qt.target, qt.expires, qt.revoked]
+      );
+    }
+
+    // 9. Seed Sample Audit Event
     await client.query(
       `INSERT INTO audit_events (restaurant_id, branch_id, actor_email, action, entity_type, entity_id, new_state)
        VALUES ($1, $2, 'system@plateproof360.internal', 'SYSTEM_INITIAL_SEED', 'SYSTEM', $1, '{"status": "initialized", "demo": true}'::jsonb)`,

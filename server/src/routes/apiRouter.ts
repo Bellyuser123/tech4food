@@ -5,6 +5,8 @@ import { restaurantRouter } from './restaurantRoutes.js';
 import { incidentRouter } from './incidentRoutes.js';
 import { menuRouter } from './menuRoutes.js';
 import { uploadRouter } from './uploadRoutes.js';
+import { qrRouter } from './qrRoutes.js';
+import { orderRouter } from './orderRoutes.js';
 
 export const apiRouter = Router();
 
@@ -23,7 +25,13 @@ apiRouter.use('/restaurants', menuRouter);
 // 5. File & Image Uploads
 apiRouter.use('/uploads', uploadRouter);
 
-// 6. Incident Management & Corrective Actions
+// 6. Cryptographic QR Resolution & Station Management
+apiRouter.use('/qr', qrRouter);
+
+// 7. Orders & Order-Specific Safety Data
+apiRouter.use('/orders', orderRouter);
+
+// 8. Incident Management & Corrective Actions
 apiRouter.use('/operations', incidentRouter);
 
 // API Documentation index

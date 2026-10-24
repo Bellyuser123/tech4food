@@ -14,7 +14,13 @@ import {
   Clock,
 } from 'lucide-react';
 
-export const CustomerComplaintPage: React.FC = () => {
+interface CustomerComplaintPageProps {
+  initialOrderReference?: string;
+}
+
+export const CustomerComplaintPage: React.FC<CustomerComplaintPageProps> = ({
+  initialOrderReference,
+}) => {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'submit' | 'track'>('submit');
 
@@ -22,7 +28,13 @@ export const CustomerComplaintPage: React.FC = () => {
   const [allegationType, setAllegationType] = useState<string>('food_poisoning');
   const [description, setDescription] = useState<string>('');
   const [incidentTime, setIncidentTime] = useState<string>('');
-  const [orderReference, setOrderReference] = useState<string>('');
+  const [orderReference, setOrderReference] = useState<string>(initialOrderReference || '');
+
+  React.useEffect(() => {
+    if (initialOrderReference) {
+      setOrderReference(initialOrderReference);
+    }
+  }, [initialOrderReference]);
   const [contactInfo, setContactInfo] = useState<string>('');
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);

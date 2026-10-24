@@ -7,19 +7,31 @@ import {
   AlertOctagon,
   LayoutDashboard,
   LogIn,
+  QrCode,
+  Receipt,
 } from 'lucide-react';
 
-export type ActivePage = 'profile' | 'menu' | 'complaint' | 'dashboard' | 'login' | 'health';
+export type ActivePage = 'profile' | 'menu' | 'order' | 'complaint' | 'dashboard' | 'login' | 'health';
 
 interface NavigationProps {
   activePage: ActivePage;
   onPageChange: (page: ActivePage) => void;
+  onOpenQrScanner?: () => void;
+  hasActiveOrder?: boolean;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ activePage, onPageChange }) => {
+export const Navigation: React.FC<NavigationProps> = ({
+  activePage,
+  onPageChange,
+  onOpenQrScanner,
+  hasActiveOrder = false,
+}) => {
   const navItems = [
     { id: 'profile' as ActivePage, label: 'Restaurant', icon: Store },
     { id: 'menu' as ActivePage, label: 'Menu & Safety', icon: UtensilsCrossed },
+    ...(hasActiveOrder
+      ? [{ id: 'order' as ActivePage, label: 'Active Order', icon: Receipt }]
+      : []),
     { id: 'complaint' as ActivePage, label: 'Report Issue', icon: AlertOctagon },
     { id: 'dashboard' as ActivePage, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'login' as ActivePage, label: 'Portal', icon: LogIn },
@@ -61,7 +73,18 @@ export const Navigation: React.FC<NavigationProps> = ({ activePage, onPageChange
           </nav>
 
           {/* Right Header Status Widget */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            {onOpenQrScanner && (
+              <button
+                onClick={onOpenQrScanner}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-burgundy-50 hover:bg-burgundy-100 text-burgundy-700 border border-burgundy-200 transition-all shadow-sm"
+                title="Scan Table or Order QR Code"
+              >
+                <QrCode className="w-4 h-4 text-burgundy-600" />
+                <span className="hidden sm:inline">Scan QR / Test Token</span>
+                <span className="sm:hidden">Scan QR</span>
+              </button>
+            )}
             <ApiHealthBadge />
           </div>
         </div>
@@ -77,7 +100,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activePage, onPageChange
               <button
                 key={item.id}
                 onClick={() => onPageChange(item.id)}
-                className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all min-w-[56px] ${
+                className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all min-w-[50px] ${
                   isActive
                     ? 'text-burgundy-700 font-bold'
                     : 'text-stone-500 hover:text-stone-800'
@@ -94,6 +117,17 @@ export const Navigation: React.FC<NavigationProps> = ({ activePage, onPageChange
               </button>
             );
           })}
+          {onOpenQrScanner && (
+            <button
+              onClick={onOpenQrScanner}
+              className="flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all min-w-[50px] text-burgundy-700"
+            >
+              <div className="p-1 rounded-lg bg-burgundy-100 text-burgundy-700">
+                <QrCode className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold tracking-tight mt-0.5">Scan QR</span>
+            </button>
+          )}
         </nav>
       </div>
     </>

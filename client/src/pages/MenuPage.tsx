@@ -18,7 +18,15 @@ import {
   HelpCircle,
 } from 'lucide-react';
 
-export const MenuPage: React.FC = () => {
+interface MenuPageProps {
+  activeTableNumber?: string | null;
+  onClearTable?: () => void;
+}
+
+export const MenuPage: React.FC<MenuPageProps> = ({
+  activeTableNumber,
+  onClearTable,
+}) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All Dishes');
   const [selectedAllergenFilter, setSelectedAllergenFilter] = useState<string | null>(null);
   const [activeItemDetails, setActiveItemDetails] = useState<MenuItem | null>(null);
@@ -83,6 +91,25 @@ export const MenuPage: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {activeTableNumber && (
+        <div className="p-3.5 rounded-2xl bg-cream-200/90 border border-burgundy-300 flex items-center justify-between text-xs text-stone-800 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-burgundy-700 text-white tracking-wide">
+              {activeTableNumber} Active
+            </span>
+            <span>You scanned a verified station QR. Orders placed at this table are linked to kitchen CCP safety logs.</span>
+          </div>
+          {onClearTable && (
+            <button
+              onClick={onClearTable}
+              className="text-stone-400 hover:text-stone-600 text-xs underline font-medium ml-2 shrink-0"
+            >
+              Clear Station
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Header and Safety Guarantee Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-cream-300">

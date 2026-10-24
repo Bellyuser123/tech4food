@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { pool, checkDatabaseHealth } from './index.js';
 import { AuthenticatedUser, UserMembership, UserRole } from '../types/auth.js';
 
@@ -102,6 +103,55 @@ export interface CorrectiveActionRecord {
   evidence_notes?: string;
 }
 
+export interface QrTokenRecord {
+  id: string;
+  restaurant_id: string;
+  branch_id: string;
+  token_hash: string;
+  raw_token_for_demo?: string;
+  token_type: 'table' | 'order';
+  target_reference: string;
+  expires_at: string | null;
+  is_revoked: boolean;
+  created_at: string;
+}
+
+export interface OrderSafetyCheck {
+  check_type: string;
+  reading_or_status: string;
+  target_threshold: string;
+  is_safe: boolean;
+  logged_at: string;
+  logged_by_role: string;
+}
+
+export interface OrderItemDetail {
+  menu_item_id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  special_allergen_notes?: string;
+  ingredients: string[];
+  allergens: StructuredAllergenDeclaration[];
+  has_unverified_allergens: boolean;
+}
+
+export interface OrderRecord {
+  id: string;
+  restaurant_id: string;
+  branch_id: string;
+  table_number: string;
+  order_reference: string;
+  status: 'placed' | 'preparing' | 'served' | 'completed' | 'cancelled';
+  placed_at: string;
+  items: Array<{
+    menu_item_id: string;
+    quantity: number;
+    special_allergen_notes?: string;
+  }>;
+  safety_checks?: OrderSafetyCheck[];
+}
+
 // In-Memory Fallback State (initialized with demo seed data)
 const salt = bcrypt.genSaltSync(10);
 const demoHash = bcrypt.hashSync('PlateProof2026!Demo', salt);
@@ -157,6 +207,15 @@ const memoryUsers: UserRecord[] = [
     email: 'sophia.multi@culinarygroup.demo',
     password_hash: demoHash,
     full_name: 'Sophia Bellini (Multi-Tenant Staff)',
+    is_platform_admin: false,
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: '77777777-7777-7777-7777-777777777777',
+    email: 'gianluigi.manager@trattoriaalsole.demo',
+    password_hash: demoHash,
+    full_name: 'Gianluigi Sole (Sole Manager)',
     is_platform_admin: false,
     is_active: true,
     created_at: new Date().toISOString(),
@@ -274,6 +333,13 @@ const memoryMemberships: Array<{
     restaurantId: 'aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     branchId: 'bbbbbbb3-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     role: 'kitchen_staff',
+  },
+  {
+    id: 'm-6',
+    userId: '77777777-7777-7777-7777-777777777777',
+    restaurantId: 'aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    branchId: 'bbbbbbb3-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    role: 'restaurant_manager',
   },
 ];
 
@@ -414,6 +480,212 @@ const memoryMenuItems: MenuItemRecord[] = [
 const memoryIncidents: IncidentRecord[] = [];
 const memoryCorrectiveActions: CorrectiveActionRecord[] = [];
 const memoryAuditEvents: Array<Record<string, unknown>> = [];
+
+const hashTokenString = (token: string): string =>
+  crypto.createHash('sha256').update(token.trim()).digest('hex');
+
+const memoryOrders: OrderRecord[] = [
+  {
+    id: 'ord-demo-01',
+    restaurant_id: 'aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    branch_id: 'bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    table_number: 'Table 04',
+    order_reference: 'ORD-7294',
+    status: 'served',
+    placed_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+    items: [
+      {
+        menu_item_id: 'item-01',
+        quantity: 1,
+        special_allergen_notes: 'Table requested no extra butter on finish',
+      },
+      {
+        menu_item_id: 'item-02',
+        quantity: 1,
+      },
+    ],
+    safety_checks: [
+      {
+        check_type: 'CCP-1 Chiller Temperature Verification',
+        reading_or_status: '3.2°C',
+        target_threshold: 'Max 4.0°C (HACCP Chiller Compliant)',
+        is_safe: true,
+        logged_at: new Date(Date.now() - 42 * 60 * 1000).toISOString(),
+        logged_by_role: 'Kitchen Line 1 (Chef Marco)',
+      },
+      {
+        check_type: 'CCP-2 Internal Core Cook Temperature',
+        reading_or_status: '85.4°C',
+        target_threshold: 'Min 75.0°C (Core Cooking Passed)',
+        is_safe: true,
+        logged_at: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
+        logged_by_role: 'Kitchen Line 1 (Chef Marco)',
+      },
+      {
+        check_type: 'Supervisor Allergen Cross-Contact Check',
+        reading_or_status: 'PASSED (Dedicated allergen prep utensils verified)',
+        target_threshold: 'Dual-control cross-contact protocol',
+        is_safe: true,
+        logged_at: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+        logged_by_role: 'Supervisor (Marco Santoro)',
+      },
+    ],
+  },
+  {
+    id: 'ord-demo-02',
+    restaurant_id: 'aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    branch_id: 'bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    table_number: 'Table 07',
+    order_reference: 'ORD-8812',
+    status: 'preparing',
+    placed_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+    items: [
+      {
+        menu_item_id: 'item-03',
+        quantity: 1,
+      },
+      {
+        menu_item_id: 'item-04',
+        quantity: 1,
+        special_allergen_notes: 'Guest noted mild shellfish sensitivity',
+      },
+    ],
+    safety_checks: [
+      {
+        check_type: 'CCP-1 Raw Catch Storage Cold Chain',
+        reading_or_status: '2.8°C',
+        target_threshold: 'Max 4.0°C (Raw Seafood Storage)',
+        is_safe: true,
+        logged_at: new Date(Date.now() - 14 * 60 * 1000).toISOString(),
+        logged_by_role: 'Kitchen Staff (Leo Donati)',
+      },
+      {
+        check_type: 'Allergen Advisory Verification',
+        reading_or_status: 'CAUTION: Unverified market bivalve stock flagged',
+        target_threshold: 'Customer notification required',
+        is_safe: false,
+        logged_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+        logged_by_role: 'Supervisor (Marco Santoro)',
+      },
+    ],
+  },
+  {
+    id: 'ord-demo-03',
+    restaurant_id: 'aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    branch_id: 'bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    table_number: 'Table 02',
+    order_reference: 'ORD-3001',
+    status: 'completed',
+    placed_at: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(),
+    items: [
+      {
+        menu_item_id: 'item-01',
+        quantity: 2,
+      },
+    ],
+  },
+];
+
+const memoryQrTokens: QrTokenRecord[] = [
+  // 1. Stable Table Tokens
+  {
+    id: 'qr-tbl-01',
+    restaurant_id: 'aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    branch_id: 'bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    raw_token_for_demo: 'tbl_osteria_t04',
+    token_hash: hashTokenString('tbl_osteria_t04'),
+    token_type: 'table',
+    target_reference: 'Table 04',
+    expires_at: null,
+    is_revoked: false,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'qr-tbl-02',
+    restaurant_id: 'aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    branch_id: 'bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    raw_token_for_demo: 'tbl_osteria_t07',
+    token_hash: hashTokenString('tbl_osteria_t07'),
+    token_type: 'table',
+    target_reference: 'Table 07',
+    expires_at: null,
+    is_revoked: false,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'qr-tbl-03',
+    restaurant_id: 'aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    branch_id: 'bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    raw_token_for_demo: 'tbl_osteria_t12',
+    token_hash: hashTokenString('tbl_osteria_t12'),
+    token_type: 'table',
+    target_reference: 'Table 12',
+    expires_at: null,
+    is_revoked: false,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'qr-tbl-revoked',
+    restaurant_id: 'aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    branch_id: 'bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    raw_token_for_demo: 'tbl_osteria_revoked',
+    token_hash: hashTokenString('tbl_osteria_revoked'),
+    token_type: 'table',
+    target_reference: 'Table 99',
+    expires_at: null,
+    is_revoked: true,
+    created_at: new Date().toISOString(),
+  },
+  // 2. Cryptographic Order Tokens
+  {
+    id: 'qr-ord-01',
+    restaurant_id: 'aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    branch_id: 'bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    raw_token_for_demo: 'ord_token_7294',
+    token_hash: hashTokenString('ord_token_7294'),
+    token_type: 'order',
+    target_reference: 'ord-demo-01',
+    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    is_revoked: false,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'qr-ord-02',
+    restaurant_id: 'aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    branch_id: 'bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    raw_token_for_demo: 'ord_token_8812',
+    token_hash: hashTokenString('ord_token_8812'),
+    token_type: 'order',
+    target_reference: 'ord-demo-02',
+    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    is_revoked: false,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'qr-ord-expired',
+    restaurant_id: 'aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    branch_id: 'bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    raw_token_for_demo: 'ord_token_expired',
+    token_hash: hashTokenString('ord_token_expired'),
+    token_type: 'order',
+    target_reference: 'ord-demo-03',
+    expires_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // Expired 2h ago!
+    is_revoked: false,
+    created_at: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'qr-ord-revoked',
+    restaurant_id: 'aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    branch_id: 'bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    raw_token_for_demo: 'ord_token_revoked',
+    token_hash: hashTokenString('ord_token_revoked'),
+    token_type: 'order',
+    target_reference: 'ord-demo-01',
+    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    is_revoked: true, // Explicitly revoked by staff!
+    created_at: new Date().toISOString(),
+  },
+];
 
 export class Repository {
   public static async findUserByEmail(email: string): Promise<UserRecord | null> {
@@ -704,6 +976,18 @@ export class Repository {
       return res.rows;
     }
     return memoryBranches.filter((b) => b.restaurant_id === restaurantId && b.is_active);
+  }
+
+  public static async findBranchById(branchId: string): Promise<BranchRecord | null> {
+    const health = await checkDatabaseHealth();
+    if (health.status === 'connected') {
+      const res = await pool.query<BranchRecord>(
+        'SELECT * FROM branches WHERE id = $1 AND is_active = TRUE',
+        [branchId]
+      );
+      return res.rows[0] || null;
+    }
+    return memoryBranches.find((b) => b.id === branchId && b.is_active) || null;
   }
 
   public static async createBranch(
@@ -998,5 +1282,267 @@ export class Repository {
         item.display_order = i + 1;
       }
     }
+  }
+
+  // ==========================================
+  // Phase 5: QR Code & Order Access Methods
+  // ==========================================
+
+  public static async findQrTokenByRaw(rawToken: string): Promise<QrTokenRecord | null> {
+    const cleanToken = rawToken.trim();
+    const hash = crypto.createHash('sha256').update(cleanToken).digest('hex');
+
+    const health = await checkDatabaseHealth();
+    if (health.status === 'connected') {
+      const res = await pool.query<QrTokenRecord>(
+        'SELECT * FROM qr_tokens WHERE token_hash = $1',
+        [hash]
+      );
+      if (res.rows[0]) return res.rows[0];
+    }
+
+    return (
+      memoryQrTokens.find(
+        (t) => t.token_hash === hash || t.raw_token_for_demo === cleanToken
+      ) || null
+    );
+  }
+
+  public static async findQrTokenById(
+    tokenId: string,
+    restaurantId?: string
+  ): Promise<QrTokenRecord | null> {
+    const health = await checkDatabaseHealth();
+    if (health.status === 'connected') {
+      const query = restaurantId
+        ? 'SELECT * FROM qr_tokens WHERE id = $1 AND restaurant_id = $2'
+        : 'SELECT * FROM qr_tokens WHERE id = $1';
+      const params = restaurantId ? [tokenId, restaurantId] : [tokenId];
+      const res = await pool.query<QrTokenRecord>(query, params);
+      return res.rows[0] || null;
+    }
+
+    return (
+      memoryQrTokens.find((t) => {
+        if (restaurantId) {
+          return t.id === tokenId && t.restaurant_id === restaurantId;
+        }
+        return t.id === tokenId;
+      }) || null
+    );
+  }
+
+  public static async listTableQrTokens(restaurantId: string): Promise<QrTokenRecord[]> {
+    const health = await checkDatabaseHealth();
+    if (health.status === 'connected') {
+      const res = await pool.query<QrTokenRecord>(
+        "SELECT * FROM qr_tokens WHERE restaurant_id = $1 AND token_type = 'table' ORDER BY created_at DESC",
+        [restaurantId]
+      );
+      return res.rows;
+    }
+
+    return memoryQrTokens.filter(
+      (t) => t.restaurant_id === restaurantId && t.token_type === 'table'
+    );
+  }
+
+  public static async createTableQrToken(
+    restaurantId: string,
+    branchId: string,
+    tableNumber: string,
+    rawToken: string
+  ): Promise<QrTokenRecord> {
+    const id = `qr-tbl-${Date.now()}`;
+    const hash = crypto.createHash('sha256').update(rawToken.trim()).digest('hex');
+    const now = new Date().toISOString();
+
+    const record: QrTokenRecord = {
+      id,
+      restaurant_id: restaurantId,
+      branch_id: branchId,
+      token_hash: hash,
+      raw_token_for_demo: rawToken,
+      token_type: 'table',
+      target_reference: tableNumber,
+      expires_at: null, // Table tokens are permanent until revoked/replaced
+      is_revoked: false,
+      created_at: now,
+    };
+
+    const health = await checkDatabaseHealth();
+    if (health.status === 'connected') {
+      await pool.query(
+        `INSERT INTO qr_tokens (id, restaurant_id, branch_id, token_hash, token_type, target_reference, expires_at, is_revoked)
+         VALUES ($1, $2, $3, $4, 'table', $5, NULL, FALSE)`,
+        [id, restaurantId, branchId, hash, tableNumber]
+      );
+    }
+
+    memoryQrTokens.unshift(record);
+    return record;
+  }
+
+  public static async createOrderQrToken(
+    restaurantId: string,
+    branchId: string,
+    orderId: string,
+    rawToken: string,
+    expiresInHours = 24
+  ): Promise<QrTokenRecord> {
+    const id = `qr-ord-${Date.now()}`;
+    const hash = crypto.createHash('sha256').update(rawToken.trim()).digest('hex');
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + expiresInHours * 60 * 60 * 1000).toISOString();
+
+    const record: QrTokenRecord = {
+      id,
+      restaurant_id: restaurantId,
+      branch_id: branchId,
+      token_hash: hash,
+      raw_token_for_demo: rawToken,
+      token_type: 'order',
+      target_reference: orderId,
+      expires_at: expiresAt,
+      is_revoked: false,
+      created_at: now.toISOString(),
+    };
+
+    const health = await checkDatabaseHealth();
+    if (health.status === 'connected') {
+      await pool.query(
+        `INSERT INTO qr_tokens (id, restaurant_id, branch_id, token_hash, token_type, target_reference, expires_at, is_revoked)
+         VALUES ($1, $2, $3, $4, 'order', $5, $6, FALSE)`,
+        [id, restaurantId, branchId, hash, orderId, expiresAt]
+      );
+    }
+
+    memoryQrTokens.unshift(record);
+    return record;
+  }
+
+  public static async revokeQrToken(
+    tokenId: string,
+    restaurantId: string
+  ): Promise<boolean> {
+    const token = await this.findQrTokenById(tokenId, restaurantId);
+    if (!token) {
+      return false;
+    }
+
+    token.is_revoked = true;
+
+    const health = await checkDatabaseHealth();
+    if (health.status === 'connected') {
+      const res = await pool.query(
+        'UPDATE qr_tokens SET is_revoked = TRUE WHERE id = $1 AND restaurant_id = $2',
+        [tokenId, restaurantId]
+      );
+      return (res.rowCount || 0) > 0;
+    }
+
+    return true;
+  }
+
+  public static async findOrderById(
+    orderId: string,
+    restaurantId?: string
+  ): Promise<OrderRecord | null> {
+    const order = memoryOrders.find((o) => {
+      if (restaurantId) {
+        return o.id === orderId && o.restaurant_id === restaurantId;
+      }
+      return o.id === orderId;
+    });
+    return order || null;
+  }
+
+  public static async findOrderByReference(
+    reference: string,
+    restaurantId?: string
+  ): Promise<OrderRecord | null> {
+    const order = memoryOrders.find((o) => {
+      if (restaurantId) {
+        return o.order_reference.toLowerCase() === reference.toLowerCase() && o.restaurant_id === restaurantId;
+      }
+      return o.order_reference.toLowerCase() === reference.toLowerCase();
+    });
+    return order || null;
+  }
+
+  public static async listRestaurantOrders(
+    restaurantId: string,
+    branchId?: string
+  ): Promise<OrderRecord[]> {
+    return memoryOrders.filter((o) => {
+      if (o.restaurant_id !== restaurantId) return false;
+      if (branchId && o.branch_id !== branchId) return false;
+      return true;
+    });
+  }
+
+  /**
+   * Resolves order details for a customer scanning an order QR.
+   * STRICT SECURITY: Zero customer personal identifiable information (PII) returned.
+   * Returns only order items, allergen disclosures, and logged CCP temperatures.
+   */
+  public static async findOrderForCustomerToken(orderId: string) {
+    const order = await this.findOrderById(orderId);
+    if (!order) return null;
+
+    const restaurant = await this.findRestaurantById(order.restaurant_id);
+    const branch = await this.findBranchById(order.branch_id);
+
+    // Hydrate ordered dishes with allergen safety records
+    const hydratedItems: OrderItemDetail[] = [];
+    for (const item of order.items) {
+      const menuItem = await this.findMenuItemById(order.restaurant_id, item.menu_item_id);
+      if (menuItem) {
+        hydratedItems.push({
+          menu_item_id: menuItem.id,
+          name: menuItem.name,
+          price: menuItem.price,
+          quantity: item.quantity,
+          special_allergen_notes: item.special_allergen_notes,
+          ingredients: menuItem.ingredients,
+          allergens: menuItem.allergens,
+          has_unverified_allergens: menuItem.has_unverified_allergens,
+        });
+      }
+    }
+
+    return {
+      orderId: order.id,
+      orderReference: order.order_reference,
+      tableNumber: order.table_number,
+      status: order.status,
+      placedAt: order.placed_at,
+      restaurant: restaurant
+        ? {
+            id: restaurant.id,
+            name: restaurant.name,
+            slug: restaurant.slug,
+            address: restaurant.address,
+            phone: restaurant.phone,
+            is_verified: restaurant.is_verified,
+            verification_source: restaurant.verification_source,
+          }
+        : null,
+      branch: branch
+        ? {
+            id: branch.id,
+            name: branch.name,
+            code: branch.code,
+            address: branch.address,
+            phone: branch.phone,
+          }
+        : null,
+      items: hydratedItems,
+      safetyChecks: order.safety_checks || [],
+      // Seamless link to complaint workflow
+      complaintFilingUrl: `/complaint?orderRef=${encodeURIComponent(order.order_reference)}&restId=${order.restaurant_id}`,
+      allergyAdvisoryNotice:
+        'Allergen declarations reflect kitchen preparation standards. Cross-contact risk cannot be eliminated in shared prep environments. If you suspect an adverse reaction, contact staff or emergency medical services immediately.',
+    };
   }
 }

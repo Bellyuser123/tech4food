@@ -3,6 +3,9 @@ import {
   ApiResponse,
   RestaurantProfile,
   PublicMenuResponse,
+  QrResolutionResult,
+  CustomerOrderView,
+  TableQrRecord,
 } from '../types/index.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
@@ -141,5 +144,84 @@ export class ApiService {
     const json = await res.json();
     if (!json.success) throw new Error(json.error?.message || 'Failed to upload image');
     return json.data;
+  }
+
+  // ==========================================
+  // Phase 5: QR Resolution & Order Endpoints
+  // ==========================================
+
+  public static async resolveQrToken(token: string): Promise<QrResolutionResult> {
+    const res = await fetch(`${API_BASE_URL}/qr/resolve/${encodeURIComponent(token.trim())}`);
+    const json = await res.json();
+    if (!json.success) {
+      const err = new Error(json.error?.message || 'QR code resolution failed');
+      (err as any).code = json.error?.code || 'UNKNOWN';
+      throw err;
+    }
+    return json.data;
+  }
+
+  public static async getOrderByToken(token: string): Promise<CustomerOrderView> {
+    const res = await fetch(`${API_BASE_URL}/orders/by-token/${encodeURIComponent(token.trim())}`);
+    const json = await res.json();
+    if (!json.success) {
+      const err = new Error(json.error?.message || 'Order lookup failed');
+      (err as any).code = json.error?.code || 'UNKNOWN';
+      throw err;
+    }
+    return json.data;
+  }
+
+  public static async listTableQrCodes(
+    restaurantId: string,
+    token: string
+  ): Promise<TableQrRecord[]> {
+    const res = await fetch(`${API_BASE_URL}/qr/restaurants/${restaurantId}/tables`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error?.message || 'Failed to list table QR codes');
+    return json.data.tableQrs;
+  }
+
+  public static async generateTableQrCode(
+    restaurantId: string,
+    token: string,
+    tableNumber: string
+  ): Promise<TableQrRecord> {
+    const res = await fetch(
+      `${API_BASE_URL}/qr/restaurants/${restaurantId}/tables/generate`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ tableNumber }),
+      }
+    );
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error?.message || 'Failed to generate table QR code');
+    return json.data;
+  }
+
+  public static async revokeQrCode(
+    restaurantId: string,
+    token: string,
+    tokenId: string
+  ): Promise<void> {
+    const res = await fetch(
+      `${API_BASE_URL}/qr/restaurants/${restaurantId}/revoke/${tokenId}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error?.message || 'Failed to revoke QR code');
   }
 }

@@ -135,3 +135,78 @@ export interface ComplaintSubmission {
   contactEmailOrPhone?: string;
   evidenceNotes?: string;
 }
+
+export interface OrderItemCustomerView {
+  menu_item_id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  special_allergen_notes?: string;
+  ingredients: string[];
+  allergens: StructuredAllergen[];
+  has_unverified_allergens: boolean;
+}
+
+export interface OrderSafetyCheckView {
+  check_type: string;
+  reading_or_status: string;
+  target_threshold: string;
+  is_safe: boolean;
+  logged_at: string;
+  logged_by_role: string;
+}
+
+export interface CustomerOrderView {
+  orderId: string;
+  orderReference: string;
+  tableNumber: string;
+  status: 'placed' | 'preparing' | 'served' | 'completed' | 'cancelled';
+  placedAt: string;
+  restaurant: {
+    id: string;
+    name: string;
+    slug: string;
+    address: string;
+    phone: string;
+    is_verified: boolean;
+    verification_source?: string;
+  } | null;
+  branch: {
+    id: string;
+    name: string;
+    code: string;
+    address: string;
+    phone: string;
+  } | null;
+  items: OrderItemCustomerView[];
+  safetyChecks: OrderSafetyCheckView[];
+  complaintFilingUrl: string;
+  allergyAdvisoryNotice: string;
+}
+
+export interface TableQrRecord {
+  id: string;
+  restaurantId: string;
+  branchId: string;
+  tableNumber: string;
+  tokenHash: string;
+  rawTokenPreview?: string;
+  isRevoked: boolean;
+  createdAt: string;
+  deepLinkUrl: string;
+  qrDataUrl: string;
+  qrSvg: string;
+  printableStationCardHtml?: string;
+}
+
+export interface QrResolutionResult {
+  type: 'table' | 'order';
+  restaurantId?: string;
+  branchId?: string;
+  tableNumber?: string;
+  restaurant?: RestaurantProfile | null;
+  branch?: { id: string; name: string; code: string; address: string; phone: string } | null;
+  redirectPath?: string;
+  order?: CustomerOrderView;
+}
+
